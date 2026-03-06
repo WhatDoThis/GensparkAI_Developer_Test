@@ -1,9 +1,10 @@
 // lib/providers/auth_provider.dart
-// 인증 상태 관리 Provider — 앱 전체 로그인/로그아웃 상태 공유
+// 인증 상태 관리 Provider — 백엔드 API 연동 버전
 
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
-import '../services/auth/auth_service.dart';
+import '../services/auth/api_auth_service.dart';
+import '../services/auth/auth_service.dart'; // AuthResult, AuthError 재사용
 
 enum AuthState { initial, loading, authenticated, unauthenticated }
 
@@ -12,6 +13,7 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _user;
   String? _errorMessage;
   bool _requiresMfa = false;
+  bool _isBackendConnected = false;
 
   AuthState get state => _state;
   UserModel? get user => _user;
@@ -19,15 +21,17 @@ class AuthProvider extends ChangeNotifier {
   bool get requiresMfa => _requiresMfa;
   bool get isAuthenticated => _state == AuthState.authenticated;
   bool get isLoading => _state == AuthState.loading;
+  bool get isBackendConnected => _isBackendConnected;
 
-  // ──────────────────────────────────────────
-  // 앱 시작 시 세션 복원
-  // ──────────────────────────────────────────
+  // ── 앱 시작 시 세션 복원 ───────────────────────────────
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
 
-    final savedUser = await AuthService.restoreSession();
+    // 백엔드 연결 상태 확인
+    await _checkBackendHealth();
+
+    final savedUser = await ApiAuthService.restoreSession();
     if (savedUser != null) {
       _user = savedUser;
       _state = AuthState.authenticated;
@@ -37,25 +41,35 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ──────────────────────────────────────────
-  // 회원가입
-  // ──────────────────────────────────────────
+  Future<void> _checkBackendHealth() async {
+    try {
+      await ApiAuthService.getStoredToken();
+      _isBackendConnected = true;
+    } catch (_) {
+      _isBackendConnected = false;
+    }
+  }
+
+  // ── 회원가입 ───────────────────────────────────────────
   Future<bool> signUp({
     required String email,
     required String password,
+    required String name,
   }) async {
     _state = AuthState.loading;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await AuthService.signUp(
+    final result = await ApiAuthService.signUp(
       email: email,
       password: password,
+      name: name,
     );
 
     if (result.success && result.user != null) {
       _user = result.user;
       _state = AuthState.authenticated;
+      _isBackendConnected = true;
       notifyListeners();
       return true;
     } else {
@@ -66,9 +80,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ──────────────────────────────────────────
-  // 로그인
-  // ──────────────────────────────────────────
+  // ── 로그인 ────────────────────────────────────────────
   Future<bool> login({
     required String email,
     required String password,
@@ -78,7 +90,7 @@ class AuthProvider extends ChangeNotifier {
     _requiresMfa = false;
     notifyListeners();
 
-    final result = await AuthService.login(
+    final result = await ApiAuthService.login(
       email: email,
       password: password,
     );
@@ -86,6 +98,7 @@ class AuthProvider extends ChangeNotifier {
     if (result.success && result.user != null) {
       _user = result.user;
       _state = AuthState.authenticated;
+      _isBackendConnected = true;
       notifyListeners();
       return true;
     } else if (result.requiresMfa) {
@@ -96,16 +109,20 @@ class AuthProvider extends ChangeNotifier {
     } else {
       _errorMessage = result.errorMessage;
       _state = AuthState.unauthenticated;
+      // 서버 연결 실패 감지
+      if (result.error == AuthError.unknown &&
+          (result.errorMessage?.contains('연결') == true ||
+              result.errorMessage?.contains('connect') == true)) {
+        _isBackendConnected = false;
+      }
       notifyListeners();
       return false;
     }
   }
 
-  // ──────────────────────────────────────────
-  // 로그아웃
-  // ──────────────────────────────────────────
+  // ── 로그아웃 ──────────────────────────────────────────
   Future<void> logout() async {
-    await AuthService.logout(_user?.id);
+    await ApiAuthService.logout();
     _user = null;
     _state = AuthState.unauthenticated;
     _errorMessage = null;

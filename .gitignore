@@ -43,3 +43,6 @@ doc/api/
 *.swp
 *.swo
 .DS_Store
+backend/.env
+backend/data/
+backend/node_modules/

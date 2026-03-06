@@ -17,6 +17,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
+  final _nameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscurePassword = true;
@@ -27,6 +28,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   void dispose() {
     _emailCtrl.dispose();
+    _nameCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
     super.dispose();
@@ -55,6 +57,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final ok = await auth.signUp(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
+      name: _nameCtrl.text.trim().isEmpty ? '트레이더' : _nameCtrl.text.trim(),
     );
 
     if (ok && mounted) {
@@ -129,6 +132,24 @@ class _SignupScreenState extends State<SignupScreen> {
                     if (!AuthService.isValidEmail(v.trim())) {
                       return '올바른 이메일 형식이 아닙니다.';
                     }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // 이름 (백엔드 API 필수값)
+                TextFormField(
+                  controller: _nameCtrl,
+                  keyboardType: TextInputType.name,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: '이름 (닉네임)',
+                    hintText: '예: 홍길동',
+                    prefixIcon: Icon(Icons.person_outlined),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return '이름을 입력하세요.';
+                    if (v.trim().length > 50) return '50자 이내로 입력하세요.';
                     return null;
                   },
                 ),
