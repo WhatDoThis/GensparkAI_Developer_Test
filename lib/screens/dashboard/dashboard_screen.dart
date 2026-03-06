@@ -7,6 +7,7 @@ import '../../utils/app_theme.dart';
 import '../../utils/formatters.dart';
 import '../../widgets/common/stat_card.dart';
 import '../../models/stock_model.dart';
+import '../trading_setup/trading_setup_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -26,6 +27,7 @@ class DashboardScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       _buildStatusBanner(context, provider),
+                      _buildTradingControlCard(context, provider),
                       _buildStatsRow(context, provider),
                       _buildPnlChart(context, provider),
                       _buildPositions(context, provider),
@@ -459,6 +461,267 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // ── 매매 컨트롤 카드 (DashboardScreen 메서드) ─────────────
+  Widget _buildTradingControlCard(BuildContext context, TradingProvider provider) {
+    final isRunning = provider.isTradingRunning;
+    final isLoading = provider.isStatusLoading;
+    final stats = provider.todayStats;
+    final cfg = provider.tradingSettings;
+
+    final pnl = (stats['pnl'] as num?)?.toDouble() ?? 0.0;
+    final tradeCount = (stats['tradeCount'] as num?)?.toInt() ?? 0;
+    final consecutive = (stats['consecutiveLosses'] as num?)?.toInt() ?? 0;
+    final remaining = (stats['remainingBudget'] as num?)?.toDouble() ?? 0.0;
+    final isLossFloor = stats['isLossFloorReached'] as bool? ?? false;
+    final budget = (cfg['dailyBudget'] as num?)?.toDouble() ?? 0.0;
+
+    Color statusColor = isRunning
+        ? const Color(0xFF00D09E)
+        : isLossFloor
+            ? const Color(0xFFFF5252)
+            : const Color(0xFF8B9CB5);
+
+    String statusLabel = isRunning ? '자동매매 중' : isLossFloor ? '손실 중단' : '대기중';
+    IconData statusIcon = isRunning
+        ? Icons.play_circle
+        : isLossFloor
+            ? Icons.warning_amber_rounded
+            : Icons.pause_circle_outline;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isRunning
+              ? const Color(0xFF00D09E).withValues(alpha: 0.4)
+              : AppTheme.border,
+          width: isRunning ? 1.5 : 1,
+        ),
+        boxShadow: isRunning
+            ? [BoxShadow(
+                color: const Color(0xFF00D09E).withValues(alpha: 0.15),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )]
+            : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isRunning)
+                        Container(
+                          width: 6, height: 6,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: statusColor,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(
+                              color: statusColor.withValues(alpha: 0.5),
+                              blurRadius: 4,
+                            )],
+                          ),
+                        ),
+                      Icon(statusIcon, color: statusColor, size: 14),
+                      const SizedBox(width: 4),
+                      Text(statusLabel, style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      )),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TradingSetupScreen()),
+                  ).then((_) => provider.fetchTradingStatus()),
+                  icon: const Icon(Icons.tune, size: 16),
+                  label: const Text('설정', style: TextStyle(fontSize: 13)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.textSecondary,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (budget > 0) ...[
+              Row(
+                children: [
+                  _statChip('일일예산', '${(budget / 10000).toStringAsFixed(0)}만', AppTheme.textSecondary),
+                  const SizedBox(width: 8),
+                  _statChip('잔여', '${(remaining / 10000).toStringAsFixed(0)}만',
+                      isLossFloor ? const Color(0xFFFF5252) : AppTheme.textSecondary),
+                  const SizedBox(width: 8),
+                  _statChip('거래', '${tradeCount}회', AppTheme.textSecondary),
+                  const SizedBox(width: 8),
+                  _statChip('손익', '${pnl >= 0 ? '+' : ''}${(pnl / 10000).toStringAsFixed(1)}만',
+                      pnl >= 0 ? const Color(0xFF00D09E) : const Color(0xFFFF5252)),
+                ],
+              ),
+              if (consecutive > 0) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.warning_amber_rounded, size: 14, color: Color(0xFFFFB74D)),
+                    const SizedBox(width: 4),
+                    Text('연속 손실 ${consecutive}회',
+                        style: const TextStyle(
+                          fontSize: 12, color: Color(0xFFFFB74D), fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  '거래 설정을 완료하면 자동매매를 시작할 수 있습니다',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                ),
+              ),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: isLoading
+                      ? const Center(child: SizedBox(
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2)))
+                      : isRunning
+                          ? _actionButton(
+                              label: '중지',
+                              icon: Icons.stop_rounded,
+                              color: const Color(0xFFFF5252),
+                              onTap: () => _handleStop(context, provider),
+                            )
+                          : _actionButton(
+                              label: budget > 0 ? '시작' : '설정 필요',
+                              icon: Icons.play_arrow_rounded,
+                              color: budget > 0 ? const Color(0xFF00D09E) : AppTheme.textSecondary,
+                              onTap: budget > 0 ? () => _handleStart(context, provider) : null,
+                            ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: isRunning || isLoading ? null : () => _handleReset(context, provider),
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('초기화', style: TextStyle(fontSize: 13)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: BorderSide(color: AppTheme.border),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+          Text(value, style: TextStyle(fontSize: 13, color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: onTap != null ? color : AppTheme.surfaceVariant,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  Future<void> _handleStart(BuildContext context, TradingProvider provider) async {
+    final err = await provider.startTrading();
+    if (err != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('시작 실패: $err'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _handleStop(BuildContext context, TradingProvider provider) async {
+    final err = await provider.stopTrading();
+    if (err != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('중지 실패: $err'), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _handleReset(BuildContext context, TradingProvider provider) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('설정 초기화'),
+        content: const Text('모든 거래 설정이 초기화됩니다. 계속하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('초기화', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      final err = await provider.resetTradingSettings();
+      if (err != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('초기화 실패: $err'), backgroundColor: Colors.red));
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('설정이 초기화되었습니다')));
+      }
+    }
   }
 }
 

@@ -1,6 +1,8 @@
 // lib/providers/trading_provider.dart
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/stock_model.dart';
+import '../services/trading/trading_api_service.dart';
 
 class TradingProvider extends ChangeNotifier {
   AccountInfo? _account;
@@ -42,8 +44,111 @@ class TradingProvider extends ChangeNotifier {
   String _marketSentiment = '반도체·2차전지 주도 — 적극매매';
   String get marketSentiment => _marketSentiment;
 
+  // ── 백엔드 거래 상태 ────────────────────────────────────
+  String _tradingStatus = 'IDLE'; // IDLE / RUNNING / STOPPED
+  String get tradingStatus => _tradingStatus;
+  bool get isTradingRunning => _tradingStatus == 'RUNNING';
+
+  Map<String, dynamic> _todayStats = {};
+  Map<String, dynamic> get todayStats => _todayStats;
+
+  Map<String, dynamic> _tradingSettings = {};
+  Map<String, dynamic> get tradingSettings => _tradingSettings;
+
+  bool _isStatusLoading = false;
+  bool get isStatusLoading => _isStatusLoading;
+
+  String? _tradingError;
+  String? get tradingError => _tradingError;
+
+  Timer? _statusTimer;
+
   TradingProvider() {
     _loadMockData();
+    _startStatusPolling();
+  }
+
+  void _startStatusPolling() {
+    // 로그인 후 10초마다 거래 상태 자동 갱신
+    _statusTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      fetchTradingStatus();
+    });
+    fetchTradingStatus(); // 즉시 한번 실행
+  }
+
+  @override
+  void dispose() {
+    _statusTimer?.cancel();
+    super.dispose();
+  }
+
+  // ── 거래 상태 조회 ─────────────────────────────────────
+  Future<void> fetchTradingStatus() async {
+    try {
+      final data = await TradingApiService.getTradingStatus();
+      _tradingStatus = data['status'] as String? ?? 'IDLE';
+      _todayStats = data['today'] as Map<String, dynamic>? ?? {};
+      _tradingSettings = data['config'] as Map<String, dynamic>? ?? {};
+      notifyListeners();
+    } catch (_) {
+      // 백엔드 미연결 시 무시 (mock 데이터 유지)
+    }
+  }
+
+  // ── 거래 시작 ──────────────────────────────────────────
+  Future<String?> startTrading() async {
+    _isStatusLoading = true;
+    _tradingError = null;
+    notifyListeners();
+    try {
+      await TradingApiService.startTrading();
+      await fetchTradingStatus();
+      _isStatusLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _tradingError = e.toString().replaceFirst('Exception: ', '');
+      _isStatusLoading = false;
+      notifyListeners();
+      return _tradingError;
+    }
+  }
+
+  // ── 거래 중지 ──────────────────────────────────────────
+  Future<String?> stopTrading() async {
+    _isStatusLoading = true;
+    _tradingError = null;
+    notifyListeners();
+    try {
+      await TradingApiService.stopTrading();
+      await fetchTradingStatus();
+      _isStatusLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _tradingError = e.toString().replaceFirst('Exception: ', '');
+      _isStatusLoading = false;
+      notifyListeners();
+      return _tradingError;
+    }
+  }
+
+  // ── 설정 초기화 ────────────────────────────────────────
+  Future<String?> resetTradingSettings() async {
+    _isStatusLoading = true;
+    notifyListeners();
+    try {
+      await TradingApiService.resetSettings();
+      await fetchTradingStatus();
+      _isStatusLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _tradingError = e.toString().replaceFirst('Exception: ', '');
+      _isStatusLoading = false;
+      notifyListeners();
+      return _tradingError;
+    }
   }
 
   void _loadMockData() {
@@ -319,5 +424,6 @@ class TradingProvider extends ChangeNotifier {
 
   void refreshData() {
     _loadMockData();
+    fetchTradingStatus();
   }
 }

@@ -16,9 +16,12 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF5F6368); // 부 텍스트
   static const Color textTertiary = Color(0xFF9AA0A6);  // 3차 텍스트
   static const Color divider = Color(0xFFE8EAED);       // 구분선
+  static const Color border = Color(0xFFE8EAED);        // 테두리 (divider alias)
   static const Color background = Color(0xFFF8F9FA);    // 배경
   static const Color surface = Color(0xFFFFFFFF);       // 카드 배경
   static const Color surfaceVariant = Color(0xFFF1F3F4); // 연한 카드
+  static const Color cardBackground = Color(0xFFFFFFFF); // 카드 배경 (surface alias)
+  static const Color accent = Color(0xFF1A73E8);         // 강조색 (primary alias)
 
   static ThemeData get lightTheme {
     return ThemeData(
