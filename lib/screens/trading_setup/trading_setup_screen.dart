@@ -383,22 +383,21 @@ class _TradingSetupScreenState extends State<TradingSetupScreen> {
               Text('API 키 발급 방법', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 6),
               _guideItem('1', 'https://apiportal.koreainvestment.com 접속'),
-              _guideItem('2', '로그인 → 앱 신청 → 모의투자 선택'),
-              _guideItem('3', 'App Key / App Secret 복사'),
-              _guideItem('4', '계좌번호는 하이픈 없이 숫자만 입력'),
+              _guideItem('2', '로그인 → My API → 앱 신청'),
+              _guideItem('3', '실거래: 실전투자 앱 신청 / 모의투자: 모의투자 앱 신청'),
+              _guideItem('4', 'App Key / App Secret 복사'),
+              _guideItem('5', '계좌번호는 하이픈 없이 숫자만 입력 (예: 5012345601)'),
             ],
           ),
         ),
         const SizedBox(height: 20),
 
-        // 브로커 선택
+        // 브로커 선택 (KIS 단독, 추후 증권사 추가 예정)
         _label('증권사'),
         const SizedBox(height: 8),
         Row(
           children: [
             _brokerChip('kis', '한국투자증권', Icons.account_balance),
-            const SizedBox(width: 8),
-            _brokerChip('kiwoom', '키움증권', Icons.trending_up),
           ],
         ),
         const SizedBox(height: 16),

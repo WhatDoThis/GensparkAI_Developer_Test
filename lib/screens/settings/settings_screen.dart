@@ -152,10 +152,10 @@ class SettingsScreen extends StatelessWidget {
               _buildSection(context, '증권사 API', [
                 _SettingsTile(
                   icon: Icons.key_outlined,
-                  title: '키움증권 API Key',
+                  title: '한국투자증권 KIS API',
                   subtitle: account?.isConnected == true
-                      ? '연동됨 (모의투자)'
-                      : '미연동',
+                      ? (account!.tradingMode == TradingMode.live ? '연동됨 (실전투자)' : '연동됨 (모의투자)')
+                      : '미연동 — 매매 설정에서 연결',
                   trailing: Container(
                     width: 8, height: 8,
                     decoration: BoxDecoration(
@@ -164,17 +164,6 @@ class SettingsScreen extends StatelessWidget {
                           : AppTheme.textTertiary,
                       shape: BoxShape.circle,
                     ),
-                  ),
-                  onTap: () => _showApiKeyDialog(context, '키움증권'),
-                ),
-                _SettingsTile(
-                  icon: Icons.key_outlined,
-                  title: '한국투자증권 KIS API',
-                  subtitle: '미연동',
-                  trailing: Container(
-                    width: 8, height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.textTertiary, shape: BoxShape.circle),
                   ),
                   onTap: () => _showApiKeyDialog(context, '한국투자증권'),
                 ),

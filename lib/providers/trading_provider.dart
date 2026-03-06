@@ -156,7 +156,7 @@ class TradingProvider extends ChangeNotifier {
 
     _account = const AccountInfo(
       id: 'acc_001',
-      brokerType: BrokerType.kiwoom,
+      brokerType: BrokerType.kis,
       accountNumber: '1234-56-789012',
       totalBalance: 10320000,
       availableCash: 3200000,

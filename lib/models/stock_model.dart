@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 enum Recommendation { buy, watch, avoid }
 enum TradeType { buy, sell }
 enum SellReason { profit, stopLoss, trailing, aiDecision, marketClose }
-enum BrokerType { kiwoom, kis }
+// 현재 지원: kis(한국투자증권) / 추후 추가 예정: kiwoom 등
+enum BrokerType { kis }
 enum TradingMode { paper, live }
 
 /// 워치리스트 종목
@@ -243,8 +244,6 @@ class AccountInfo {
 
   String get brokerName {
     switch (brokerType) {
-      case BrokerType.kiwoom:
-        return '키움증권';
       case BrokerType.kis:
         return '한국투자증권';
     }

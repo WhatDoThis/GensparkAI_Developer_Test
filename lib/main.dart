@@ -189,7 +189,7 @@ class _MoreScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 _InfoRow(label: 'AI 모델', value: 'claude-sonnet-4'),
                 const SizedBox(height: 6),
-                _InfoRow(label: '지원 증권사', value: '키움증권 · 한국투자증권'),
+                _InfoRow(label: '지원 증권사', value: '한국투자증권(KIS)'),
                 const SizedBox(height: 6),
                 _InfoRow(label: '기술적 지표',
                     value: 'RSI · MACD · 볼린저밴드 · 스토캐스틱'),
