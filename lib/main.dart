@@ -1,8 +1,11 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'utils/app_theme.dart';
 import 'providers/trading_provider.dart';
+import 'providers/auth_provider.dart';
+import 'screens/auth/auth_guard.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/watchlist/watchlist_screen.dart';
 import 'screens/trades/trades_screen.dart';
@@ -11,7 +14,10 @@ import 'screens/settings/settings_screen.dart';
 import 'screens/backtest/backtest_screen.dart';
 import 'screens/ai_logs/ai_logs_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Hive 초기화 (감사 로그 로컬 저장소)
+  await Hive.initFlutter();
   runApp(const AutoTradeXApp());
 }
 
@@ -22,13 +28,14 @@ class AutoTradeXApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TradingProvider()),
       ],
       child: MaterialApp(
         title: 'AutoTradeX',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        home: const MainShell(),
+        home: const AuthGuard(child: MainShell()),
       ),
     );
   }

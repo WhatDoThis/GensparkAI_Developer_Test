@@ -32,6 +32,11 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.5.1
 
+  # Security & Auth
+  crypto: ^3.0.6          # HMAC-SHA256, SHA-256 해싱
+  encrypt: ^5.0.3         # AES-256 암호화/복호화
+  pointycastle: ^3.9.1    # 암호화 기반 라이브러리
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
