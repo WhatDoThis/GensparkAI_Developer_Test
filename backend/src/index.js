@@ -18,6 +18,8 @@ const { rateLimitMiddleware } = require('./middleware/ratelimit.middleware');
 // 라우트
 const authRoutes = require('./routes/auth.routes');
 const credentialRoutes = require('./routes/credentials.routes');
+const brokerRoutes = require('./routes/broker.routes');
+const tradingSettingsRoutes = require('./routes/trading-settings.routes');
 
 // 감사 로그
 const audit = require('./services/audit.service');
@@ -86,6 +88,8 @@ app.get('/health', (c) => {
 // ── 라우트 등록 ────────────────────────────────────────────
 app.route('/auth', authRoutes);
 app.route('/api/credentials', credentialRoutes);
+app.route('/api/broker', brokerRoutes);
+app.route('/api/trading', tradingSettingsRoutes);
 
 // ── 추후 추가할 라우트 (placeholder) ─────────────────────
 app.get('/api/account', (c) => {
