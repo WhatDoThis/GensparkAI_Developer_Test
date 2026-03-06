@@ -230,23 +230,22 @@ async function analyzeAndTrade(state, settings, remainingBudget) {
   await executeBuy(state, settings, selected.stock, currentPrice, quantity, aiResult);
 }
 
-// ── AI 분석 호출 (Genspark 전용) ────────────────────────────
+// ── AI 분석 호출 (OpenAI) ────────────────────────────────────
 async function callAIAnalysis(candidates, settings, remainingBudget) {
-  const apiKey = process.env.GENSPARK_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   const provider = process.env.AI_PROVIDER || 'mock';
 
-  // mock 모드 or API 키 없으면 목업 응답
-  if (provider === 'mock' || !apiKey || apiKey === '여기에_Genspark_API_키_입력') {
-    console.log('[AI] mock 모드 — Genspark API 키를 .env에 입력하면 실제 AI 분석을 사용합니다.');
+  // mock 모드 or API 키 미입력이면 목업 응답
+  if (provider === 'mock' || !apiKey || apiKey === '여기에_OpenAI_API_키_입력') {
+    console.log('[AI] mock 모드 — .env에 OPENAI_API_KEY 입력 후 AI_PROVIDER=openai 로 변경하면 실제 분석 시작');
     return mockAIResponse(candidates);
   }
 
   const prompt = buildAIPrompt(candidates, settings, remainingBudget);
-  const baseUrl = process.env.GENSPARK_BASE_URL || 'https://api.genspark.ai/v1';
-  const model = process.env.GENSPARK_MODEL || 'genspark-moa-1';
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
   try {
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -264,27 +263,25 @@ async function callAIAnalysis(candidates, settings, remainingBudget) {
             content: prompt,
           },
         ],
-        temperature: 0.2,       // 분석은 낮은 temperature (일관성 우선)
+        temperature: 0.2,                            // 일관성 우선 (낮을수록 안정적)
         max_tokens: 512,
-        response_format: { type: 'json_object' },  // JSON 강제 응답
+        response_format: { type: 'json_object' },    // JSON 강제 출력
       }),
-      signal: AbortSignal.timeout(15000),           // 15초 타임아웃
+      signal: AbortSignal.timeout(15000),            // 15초 타임아웃
     });
 
     if (!response.ok) {
       const errBody = await response.text();
-      throw new Error(`Genspark API ${response.status}: ${errBody}`);
+      throw new Error(`OpenAI API ${response.status}: ${errBody}`);
     }
 
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Genspark 응답에 content 없음');
+    const msgContent = data?.choices?.[0]?.message?.content;
+    if (!msgContent) throw new Error('OpenAI 응답에 content 없음');
 
-    // JSON 파싱 시도
-    const parsed = JSON.parse(content);
-    console.log(`[AI] Genspark 분석 완료 — 선택: ${parsed.selected?.name}(${parsed.selected?.code}), 신뢰도: ${parsed.confidence}`);
+    const parsed = JSON.parse(msgContent);
+    console.log(`[AI] OpenAI 분석 완료 — 선택: ${parsed.selected?.name}(${parsed.selected?.code}), 신뢰도: ${parsed.confidence}`);
 
-    // 필수 필드 검증
     if (!parsed.selected?.code || typeof parsed.confidence !== 'number') {
       throw new Error('응답 필드 불완전');
     }
@@ -299,7 +296,7 @@ async function callAIAnalysis(candidates, settings, remainingBudget) {
     };
 
   } catch (err) {
-    console.warn('[AI] Genspark 호출 실패 → mock 응답 사용:', err.message);
+    console.warn('[AI] OpenAI 호출 실패 → mock 응답 사용:', err.message);
     return mockAIResponse(candidates);
   }
 }
