@@ -230,22 +230,76 @@ async function analyzeAndTrade(state, settings, remainingBudget) {
   await executeBuy(state, settings, selected.stock, currentPrice, quantity, aiResult);
 }
 
-// ── AI 분석 호출 (Q2) ─────────────────────────────────────
+// ── AI 분석 호출 (Genspark 전용) ────────────────────────────
 async function callAIAnalysis(candidates, settings, remainingBudget) {
-  try {
-    // Genspark AI API 호출 (구조화된 프롬프트)
-    const prompt = buildAIPrompt(candidates, settings, remainingBudget);
+  const apiKey = process.env.GENSPARK_API_KEY;
+  const provider = process.env.AI_PROVIDER || 'mock';
 
-    if (!process.env.GENSPARK_API_KEY && process.env.AI_PROVIDER === 'mock') {
-      // 목업 AI 응답
-      return mockAIResponse(candidates);
+  // mock 모드 or API 키 없으면 목업 응답
+  if (provider === 'mock' || !apiKey || apiKey === '여기에_Genspark_API_키_입력') {
+    console.log('[AI] mock 모드 — Genspark API 키를 .env에 입력하면 실제 AI 분석을 사용합니다.');
+    return mockAIResponse(candidates);
+  }
+
+  const prompt = buildAIPrompt(candidates, settings, remainingBudget);
+  const baseUrl = process.env.GENSPARK_BASE_URL || 'https://api.genspark.ai/v1';
+  const model = process.env.GENSPARK_MODEL || 'genspark-moa-1';
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: '당신은 한국 주식 단기 매매 전문가입니다. 기술적 분석 데이터를 바탕으로 매수 종목을 선택하고 반드시 JSON 형식으로만 응답합니다.',
+          },
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        temperature: 0.2,       // 분석은 낮은 temperature (일관성 우선)
+        max_tokens: 512,
+        response_format: { type: 'json_object' },  // JSON 강제 응답
+      }),
+      signal: AbortSignal.timeout(15000),           // 15초 타임아웃
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`Genspark API ${response.status}: ${errBody}`);
     }
 
-    // 실제 AI 호출 (추후 구현)
-    // const response = await fetch('https://api.genspark.ai/v1/chat', ...);
-    return mockAIResponse(candidates);
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Genspark 응답에 content 없음');
+
+    // JSON 파싱 시도
+    const parsed = JSON.parse(content);
+    console.log(`[AI] Genspark 분석 완료 — 선택: ${parsed.selected?.name}(${parsed.selected?.code}), 신뢰도: ${parsed.confidence}`);
+
+    // 필수 필드 검증
+    if (!parsed.selected?.code || typeof parsed.confidence !== 'number') {
+      throw new Error('응답 필드 불완전');
+    }
+
+    return {
+      selected:        parsed.selected,
+      reason:          parsed.reason || '기술적 분석 기반 선택',
+      confidence:      Math.min(100, Math.max(0, parsed.confidence)),
+      targetPriceRate: parsed.targetPriceRate ?? 0.015,
+      stopLossRate:    parsed.stopLossRate    ?? 0.01,
+      isMock:          false,
+    };
+
   } catch (err) {
-    console.warn('[ENGINE] AI call failed, using mock:', err.message);
+    console.warn('[AI] Genspark 호출 실패 → mock 응답 사용:', err.message);
     return mockAIResponse(candidates);
   }
 }
