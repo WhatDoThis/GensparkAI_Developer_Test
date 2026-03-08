@@ -11,11 +11,11 @@ import 'auth_service.dart'; // AuthResult, AuthError, PasswordStrength 재사용
 /// 백엔드 서버 URL 설정
 /// 환경별로 다른 URL 사용 가능
 class ApiConfig {
-  // 웹 프리뷰(같은 머신): localhost:3000
+  // 웹 프리뷰: 샌드박스 공개 URL
   // 실제 기기(Android): 컴퓨터 로컬 IP ex) 192.168.x.x:3000
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'https://3000-ivi0bdfwrvp5cntbd9zyx-583b4d74.sandbox.novita.ai',
   );
 
   static const Duration timeout = Duration(seconds: 15);
@@ -211,17 +211,24 @@ class ApiAuthService {
 
   // ── UserModel 매핑 ────────────────────────────────────
   static UserModel _mapToUserModel(Map<String, dynamic> data) {
+    // mfaEnabled: 서버가 bool or int(0/1) 둘 다 보낼 수 있어서 안전하게 처리
+    bool parseMfa(dynamic v) {
+      if (v == null) return false;
+      if (v is bool) return v;
+      if (v is int) return v == 1;
+      return false;
+    }
+
     return UserModel(
-      id: data['id'] as String? ?? '',
-      email: data['email'] as String? ?? '',
-      role: _parseRole(data['role'] as String? ?? 'OWNER'),
-      isMfaEnabled: (data['mfa_enabled'] as int? ?? 0) == 1 ||
-          (data['mfaEnabled'] as bool? ?? false),
+      id: data['id']?.toString() ?? '',
+      email: data['email']?.toString() ?? '',
+      role: _parseRole(data['role']?.toString() ?? 'OWNER'),
+      isMfaEnabled: parseMfa(data['mfaEnabled'] ?? data['mfa_enabled']),
       createdAt: data['created_at'] != null
-          ? DateTime.tryParse(data['created_at'] as String) ?? DateTime.now()
+          ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
       lastLoginAt: data['last_login_at'] != null
-          ? DateTime.tryParse(data['last_login_at'] as String)
+          ? DateTime.tryParse(data['last_login_at'].toString())
           : null,
     );
   }

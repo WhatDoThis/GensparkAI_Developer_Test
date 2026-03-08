@@ -90,31 +90,38 @@ class AuthProvider extends ChangeNotifier {
     _requiresMfa = false;
     notifyListeners();
 
-    final result = await ApiAuthService.login(
-      email: email,
-      password: password,
-    );
+    try {
+      final result = await ApiAuthService.login(
+        email: email,
+        password: password,
+      );
 
-    if (result.success && result.user != null) {
-      _user = result.user;
-      _state = AuthState.authenticated;
-      _isBackendConnected = true;
-      notifyListeners();
-      return true;
-    } else if (result.requiresMfa) {
-      _requiresMfa = true;
-      _state = AuthState.unauthenticated;
-      notifyListeners();
-      return false;
-    } else {
-      _errorMessage = result.errorMessage;
-      _state = AuthState.unauthenticated;
-      // 서버 연결 실패 감지
-      if (result.error == AuthError.unknown &&
-          (result.errorMessage?.contains('연결') == true ||
-              result.errorMessage?.contains('connect') == true)) {
-        _isBackendConnected = false;
+      if (result.success && result.user != null) {
+        _user = result.user;
+        _state = AuthState.authenticated;
+        _isBackendConnected = true;
+        notifyListeners();
+        return true;
+      } else if (result.requiresMfa) {
+        _requiresMfa = true;
+        _state = AuthState.unauthenticated;
+        notifyListeners();
+        return false;
+      } else {
+        _errorMessage = result.errorMessage ?? '로그인에 실패했습니다.';
+        _state = AuthState.unauthenticated;
+        if (result.error == AuthError.unknown &&
+            (_errorMessage?.contains('연결') == true ||
+                _errorMessage?.contains('connect') == true)) {
+          _isBackendConnected = false;
+        }
+        notifyListeners();
+        return false;
       }
+    } catch (e) {
+      // 예외 발생 시 loading 상태에서 절대 멈추지 않도록
+      _errorMessage = '오류가 발생했습니다: $e';
+      _state = AuthState.unauthenticated;
       notifyListeners();
       return false;
     }

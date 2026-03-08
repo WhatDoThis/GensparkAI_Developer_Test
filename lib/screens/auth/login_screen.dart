@@ -32,27 +32,42 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
 
     final auth = context.read<AuthProvider>();
-    final ok = await auth.login(
-      email: _emailCtrl.text.trim(),
-      password: _passwordCtrl.text,
-    );
 
-    if (!ok && mounted) {
-      final msg = auth.errorMessage ?? '로그인에 실패했습니다.';
+    try {
+      final ok = await auth.login(
+        email: _emailCtrl.text.trim(),
+        password: _passwordCtrl.text,
+      );
+
+      if (!mounted) return;
+
+      if (!ok) {
+        final msg = auth.errorMessage ?? '로그인에 실패했습니다.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            backgroundColor: AppTheme.loss,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 5),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_outline, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Text(msg)),
-            ],
-          ),
-          backgroundColor: AppTheme.loss,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          content: Text('오류: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 6),
         ),
       );
     }

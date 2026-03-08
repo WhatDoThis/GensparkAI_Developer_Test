@@ -76,23 +76,7 @@ AI_MODEL=claude-sonnet-4
 
 ---
 
-## 5. 텔레그램 알림 (선택사항)
-
-### 봇 생성 방법
-1. 텔레그램에서 `@BotFather` 채팅
-2. `/newbot` 입력 → 봇 이름 설정 → **HTTP API Token** 발급
-3. 내 채팅 ID 확인:
-   - https://api.telegram.org/bot{TOKEN}/getUpdates 에서 `chat.id` 확인
-
-### .env 설정
-```
-TELEGRAM_BOT_TOKEN=1234567890:ABC-DEF1234...
-TELEGRAM_CHAT_ID=123456789
-```
-
----
-
-## 6. DATABASE_URL (PostgreSQL - 프로덕션)
+## 5. DATABASE_URL (PostgreSQL / Supabase - 프로덕션)
 
 개발 환경은 SQLite 사용 중 (`DATABASE_PATH=./data/autotradex.db`)
 
@@ -128,7 +112,4 @@ git commit -m "Add environment variable template"
 
 ### 3단계: AI 종목 선정
 → **GENSPARK_API_KEY** 또는 목업 유지
-
-### 4단계: 텔레그램 알림
-→ **TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID** 필요
 

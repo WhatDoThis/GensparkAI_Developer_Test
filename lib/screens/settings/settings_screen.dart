@@ -140,12 +140,6 @@ class SettingsScreen extends StatelessWidget {
                   value: true,
                   onChanged: (_) {},
                 ),
-                _SettingsTile(
-                  icon: Icons.telegram,
-                  title: '텔레그램 봇',
-                  subtitle: '미연동',
-                  onTap: () => _showTelegramDialog(context),
-                ),
               ]),
               const SizedBox(height: 12),
               // 증권사 API
@@ -494,34 +488,6 @@ class SettingsScreen extends StatelessWidget {
               child: const Text('취소')),
           ElevatedButton(onPressed: () => Navigator.pop(context),
               child: const Text('저장')),
-        ],
-      ),
-    );
-  }
-
-  void _showTelegramDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('텔레그램 봇 연동'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Bot Token'),
-            SizedBox(height: 6),
-            TextField(decoration: InputDecoration(hintText: 'your_bot_token')),
-            SizedBox(height: 12),
-            Text('Chat ID'),
-            SizedBox(height: 6),
-            TextField(decoration: InputDecoration(hintText: 'your_chat_id')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context),
-              child: const Text('취소')),
-          ElevatedButton(onPressed: () => Navigator.pop(context),
-              child: const Text('연동')),
         ],
       ),
     );
