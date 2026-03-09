@@ -133,6 +133,27 @@ class TradingProvider extends ChangeNotifier {
     }
   }
 
+  // ── 증권사 계좌 연동 ──────────────────────────────────
+  Future<void> connectBrokerAccount({
+    required String appKey,
+    required String appSecret,
+    required String accountNo,
+    bool isMock = true,
+  }) async {
+    try {
+      await TradingApiService.connectBroker(
+        broker: 'kis',
+        appKey: appKey,
+        appSecret: appSecret,
+        accountNo: accountNo,
+        isMock: isMock,
+      );
+      await fetchTradingStatus();
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   // ── 설정 초기화 ────────────────────────────────────────
   Future<String?> resetTradingSettings() async {
     _isStatusLoading = true;

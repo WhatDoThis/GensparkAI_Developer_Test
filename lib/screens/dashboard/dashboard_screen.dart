@@ -33,7 +33,8 @@ class DashboardScreen extends StatelessWidget {
                       _buildPositions(context, provider),
                       _buildWatchlistPreview(context, provider),
                       _buildRecentTrades(context, provider),
-                      const SizedBox(height: 80),
+                      _buildEmptyStateHint(context, provider),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
@@ -41,6 +42,104 @@ class DashboardScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  // 데이터 없을 때 안내 카드 (스크롤 끝 빈 화면 방지)
+  Widget _buildEmptyStateHint(BuildContext context, TradingProvider provider) {
+    final hasData = provider.positions.isNotEmpty ||
+        provider.watchlist.isNotEmpty ||
+        provider.recentTrades.isNotEmpty;
+    if (hasData) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.rocket_launch_outlined,
+              size: 36, color: AppTheme.textTertiary),
+          const SizedBox(height: 12),
+          Text(
+            '자동매매를 시작할 준비가 됐어요',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '위의 \'설정\' 버튼을 눌러 일일 예산을 설정하고\n\n'
+            '매매 시작 버튼을 누르면 AI가 종목을 선정합니다.',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppTheme.textSecondary, height: 1.6),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _guideStep(context, '1', 'KIS API 연동',
+                    '더보기 → 설정 → 한국투자증권'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _guideStep(
+                    context, '2', '예산 설정', '위 [설정] → 일일 예산 입력'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _guideStep(context, '3', '매매 시작', '[시작] 버튼 클릭'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _guideStep(BuildContext context, String num, String title, String desc) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 24, height: 24,
+            decoration: BoxDecoration(
+              color: AppTheme.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(num,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 2),
+          Text(desc,
+              style: const TextStyle(
+                  fontSize: 10, color: AppTheme.textTertiary),
+              textAlign: TextAlign.center),
+        ],
       ),
     );
   }
@@ -114,7 +213,13 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildStatusBanner(BuildContext context, TradingProvider provider) {
+    // 서킷브레이커 발동 시에만 배너 표시, 아닌 경우 숨김
     if (!provider.isCircuitBreaker) {
+      final sentiment = provider.marketSentiment;
+      // marketSentiment가 기본값이거나 비어있으면 배너 숨김
+      if (sentiment.isEmpty || sentiment == '시장 데이터 로딩 중...') {
+        return const SizedBox.shrink();
+      }
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -130,7 +235,7 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                provider.marketSentiment,
+                sentiment,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.primary, fontWeight: FontWeight.w500),
               ),
@@ -348,27 +453,9 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildPositions(BuildContext context, TradingProvider provider) {
+    // 포지션 없을 때 섹션 자체를 숨김 (빈 공간 방지)
     if (provider.positions.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.divider),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('현재 포지션', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 16),
-            const Center(
-              child: Text('보유 종목 없음',
-                  style: TextStyle(color: AppTheme.textTertiary)),
-            ),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return Container(
@@ -403,6 +490,10 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildWatchlistPreview(BuildContext context, TradingProvider provider) {
+    final list = provider.watchlist;
+    // 워치리스트 없을 때 섹션 숨김
+    if (list.isEmpty) return const SizedBox.shrink();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       decoration: BoxDecoration(
@@ -420,7 +511,7 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 Text('오늘의 워치리스트',
                     style: Theme.of(context).textTheme.titleMedium),
-                Text('AI 선정 ${provider.watchlist.length}종목',
+                Text('AI 선정 ${list.length}종목',
                     style: Theme.of(context)
                         .textTheme
                         .labelMedium
@@ -428,12 +519,8 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          ...provider.watchlist.asMap().entries.map((e) {
-            return _WatchlistRow(
-              rank: e.key + 1,
-              stock: e.value,
-            );
-          }),
+          ...list.asMap().entries.map((e) =>
+              _WatchlistRow(rank: e.key + 1, stock: e.value)),
           const SizedBox(height: 4),
         ],
       ),
@@ -441,6 +528,10 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildRecentTrades(BuildContext context, TradingProvider provider) {
+    final trades = provider.recentTrades;
+    // 거래 없을 때 섹션 숨김
+    if (trades.isEmpty) return const SizedBox.shrink();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       decoration: BoxDecoration(
@@ -456,7 +547,7 @@ class DashboardScreen extends StatelessWidget {
             child: Text('최근 거래 로그',
                 style: Theme.of(context).textTheme.titleMedium),
           ),
-          ...provider.recentTrades.map((trade) => _TradeTile(trade: trade)),
+          ...trades.map((trade) => _TradeTile(trade: trade)),
           const SizedBox(height: 4),
         ],
       ),

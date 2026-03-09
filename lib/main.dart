@@ -187,7 +187,7 @@ class _MoreScreen extends StatelessWidget {
                 const SizedBox(height: 14),
                 const Divider(color: AppTheme.divider),
                 const SizedBox(height: 10),
-                _InfoRow(label: 'AI 모델', value: 'claude-sonnet-4'),
+                _InfoRow(label: 'AI 모델', value: 'OpenAI GPT-4o-mini'),
                 const SizedBox(height: 6),
                 _InfoRow(label: '지원 증권사', value: '한국투자증권(KIS)'),
                 const SizedBox(height: 6),
