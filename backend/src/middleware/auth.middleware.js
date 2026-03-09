@@ -1,5 +1,5 @@
 /**
- * AutoTradeX Auth Middleware
+ * AutoTradeX Auth Middleware — Supabase Edition
  * JWT 검증 + 역할 기반 접근 제어 (RBAC)
  */
 
@@ -7,19 +7,18 @@ const { verifyToken } = require('../services/auth.service');
 const audit = require('../services/audit.service');
 
 /**
- * JWT 인증 미들웨어 (Hono)
+ * JWT 인증 미들웨어 (Hono) — async
  */
-function authMiddleware(c, next) {
+async function authMiddleware(c, next) {
   try {
     const authHeader = c.req.header('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return c.json({ error: '인증이 필요합니다' }, 401);
     }
 
-    const token = authHeader.slice(7);
-    const decoded = verifyToken(token);
+    const token   = authHeader.slice(7);
+    const decoded = await verifyToken(token);   // ← async
 
-    // 컨텍스트에 사용자 정보 저장
     c.set('user', decoded);
     c.set('token', token);
 
@@ -30,10 +29,10 @@ function authMiddleware(c, next) {
       eventType: audit.AuditEvent.UNAUTHORIZED_ACCESS,
       ip,
       resource: c.req.path,
-      action: c.req.method,
-      result: 'FAILURE',
+      action:   c.req.method,
+      result:   'FAILURE',
       riskLevel: audit.RiskLevel.HIGH,
-      detail: { error: err.message }
+      detail: { error: err.message },
     });
     return c.json({ error: err.message || '인증 실패' }, 401);
   }
@@ -41,7 +40,6 @@ function authMiddleware(c, next) {
 
 /**
  * 역할 검증 미들웨어
- * @param {...string} roles - 허용할 역할들
  */
 function requireRole(...roles) {
   return (c, next) => {

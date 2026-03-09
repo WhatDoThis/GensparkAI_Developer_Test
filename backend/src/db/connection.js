@@ -1,47 +1,43 @@
 /**
  * AutoTradeX Database Connection
- * better-sqlite3 기반 싱글톤 연결
+ * Supabase (PostgreSQL) 기반 싱글톤 클라이언트
+ *
+ * 사용법:
+ *   const { getDb } = require('./connection');
+ *   const db = getDb();
+ *   const { data, error } = await db.from('users').select('*').eq('id', userId);
  */
 
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
-const { CREATE_TABLES } = require('./schema');
+const { createClient } = require('@supabase/supabase-js');
 
-let db = null;
+let client = null;
 
 function getDb() {
-  if (db) return db;
+  if (client) return client;
 
-  const dbPath = process.env.DATABASE_PATH || './data/autotradex.db';
-  const absolutePath = path.resolve(dbPath);
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.SUPABASE_ANON_KEY;
 
-  // 디렉토리 없으면 생성
-  const dir = path.dirname(absolutePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (!url || !key) {
+    throw new Error('[DB] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다');
   }
 
-  db = new Database(absolutePath);
+  client = createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 
-  // 성능 최적화
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('synchronous = NORMAL');
-
-  // 테이블 생성
-  db.exec(CREATE_TABLES);
-
-  console.log(`[DB] SQLite connected: ${absolutePath}`);
-  return db;
+  console.log(`[DB] Supabase connected: ${url}`);
+  return client;
 }
 
+// 호환성 유지 (기존 코드가 closeDb 를 호출하는 경우 대비)
 function closeDb() {
-  if (db) {
-    db.close();
-    db = null;
-    console.log('[DB] Connection closed');
-  }
+  client = null;
+  console.log('[DB] Supabase client reset');
 }
 
 module.exports = { getDb, closeDb };

@@ -90,19 +90,18 @@ router.post('/login', async (c) => {
 });
 
 // ── POST /auth/logout ─────────────────────────────────────
-router.post('/logout', authMiddleware, (c) => {
+router.post('/logout', authMiddleware, async (c) => {
   const token = c.get('token');
-  const user = c.get('user');
-  authService.logout(token, user.sub, getClientInfo(c));
+  const user  = c.get('user');
+  await authService.logout(token, user.sub, getClientInfo(c));
   return c.json({ message: '로그아웃 되었습니다' });
 });
 
 // ── GET /auth/me ──────────────────────────────────────────
-router.get('/me', authMiddleware, (c) => {
+router.get('/me', authMiddleware, async (c) => {
   const { sub: userId } = c.get('user');
-  const user = authService.getUserById(userId);
+  const user = await authService.getUserById(userId);
   if (!user) return c.json({ error: '사용자를 찾을 수 없습니다' }, 404);
-
   return c.json({ user });
 });
 

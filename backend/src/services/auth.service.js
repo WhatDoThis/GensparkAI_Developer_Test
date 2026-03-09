@@ -1,52 +1,64 @@
 /**
- * AutoTradeX Auth Service
- * PRD 10-A-2: JWT RS256 → 현재 HS256 (RS256은 키파일 필요, 추후 전환)
- * 회원가입, 로그인, 세션 관리
+ * AutoTradeX Auth Service — Supabase Edition
+ * PRD 10-A-2: JWT HS256, 세션 관리
  */
 
-const jwt = require('jsonwebtoken');
+const jwt    = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
-const { getDb } = require('../db/connection');
+const { getDb }  = require('../db/connection');
 const { hashPassword, verifyPassword } = require('./crypto.service');
-const audit = require('./audit.service');
+const audit  = require('./audit.service');
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET    = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_MINUTES = 30;
+const LOCKOUT_MINUTES     = 30;
 
-// JWT jti 해시 (세션 테이블 저장용)
 function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// ── 공통 에러 핸들러 ──────────────────────────────────────
+function sbError(error, msg, status = 500) {
+  if (error) {
+    const err = new Error(msg || error.message);
+    err.status = status;
+    throw err;
+  }
 }
 
 // ── 회원가입 ───────────────────────────────────────────────
 async function signup({ email, password, name }, { ip, userAgent } = {}) {
   const db = getDb();
 
-  // 중복 이메일 확인
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-  if (existing) {
-    throw Object.assign(new Error('이미 사용 중인 이메일입니다'), { status: 409 });
-  }
+  // 중복 이메일
+  const { data: existing } = await db
+    .from('users').select('id').eq('email', email).maybeSingle();
+  if (existing) sbError({ message: '이미 사용 중인 이메일입니다' }, '이미 사용 중인 이메일입니다', 409);
 
   const passwordHash = await hashPassword(password);
   const userId = uuidv4();
+  const now = new Date().toISOString();
 
-  db.prepare(`
-    INSERT INTO users (id, email, password_hash, name)
-    VALUES (?, ?, ?, ?)
-  `).run(userId, email, passwordHash, name);
+  const { error } = await db.from('users').insert({
+    id: userId,
+    email,
+    password_hash: passwordHash,
+    name,
+    role: 'OWNER',
+    mfa_enabled: false,
+    failed_login_attempts: 0,
+    created_at: now,
+    updated_at: now,
+  });
+  sbError(error, '회원가입 실패');
 
   audit.log({
     eventType: audit.AuditEvent.SIGNUP,
-    actorId: userId,
-    ip,
-    device: userAgent,
-    resource: 'users',
-    action: 'signup',
-    detail: { email, name }
+    actorId: userId, ip, device: userAgent,
+    resource: 'users', action: 'signup',
+    detail: { email, name },
   });
 
   return { userId, email, name };
@@ -55,9 +67,11 @@ async function signup({ email, password, name }, { ip, userAgent } = {}) {
 // ── 로그인 ────────────────────────────────────────────────
 async function login({ email, password }, { ip, userAgent } = {}) {
   const db = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
 
-  // 사용자 없음 (타이밍 공격 방지: 해시 연산 수행)
+  const { data: user } = await db
+    .from('users').select('*').eq('email', email).maybeSingle();
+
+  // 사용자 없음 (타이밍 공격 방지)
   if (!user) {
     await hashPassword('dummy_timing_protection');
     audit.log({
@@ -66,7 +80,7 @@ async function login({ email, password }, { ip, userAgent } = {}) {
       resource: 'auth', action: 'login',
       result: 'FAILURE',
       detail: { email, reason: 'user_not_found' },
-      riskLevel: audit.RiskLevel.MEDIUM
+      riskLevel: audit.RiskLevel.MEDIUM,
     });
     throw Object.assign(new Error('이메일 또는 비밀번호가 올바르지 않습니다'), { status: 401 });
   }
@@ -82,33 +96,31 @@ async function login({ email, password }, { ip, userAgent } = {}) {
         resource: 'auth', action: 'login',
         result: 'BLOCKED',
         detail: { email, locked_until: user.locked_until },
-        riskLevel: audit.RiskLevel.HIGH
+        riskLevel: audit.RiskLevel.HIGH,
       });
       throw Object.assign(
         new Error(`계정이 잠겨 있습니다. ${remainMin}분 후 다시 시도하세요`),
         { status: 403 }
       );
     } else {
-      // 잠금 해제
-      db.prepare('UPDATE users SET locked_until = NULL, failed_login_attempts = 0 WHERE id = ?').run(user.id);
+      await db.from('users')
+        .update({ locked_until: null, failed_login_attempts: 0 })
+        .eq('id', user.id);
     }
   }
 
   // 비밀번호 검증
   const isValid = await verifyPassword(password, user.password_hash);
   if (!isValid) {
-    const newAttempts = user.failed_login_attempts + 1;
+    const newAttempts = (user.failed_login_attempts || 0) + 1;
     let lockedUntil = null;
-
     if (newAttempts >= MAX_FAILED_ATTEMPTS) {
       lockedUntil = new Date(Date.now() + LOCKOUT_MINUTES * 60 * 1000).toISOString();
     }
 
-    db.prepare(`
-      UPDATE users 
-      SET failed_login_attempts = ?, locked_until = ?
-      WHERE id = ?
-    `).run(newAttempts, lockedUntil, user.id);
+    await db.from('users')
+      .update({ failed_login_attempts: newAttempts, locked_until: lockedUntil })
+      .eq('id', user.id);
 
     const isLocked = !!lockedUntil;
     audit.log({
@@ -117,7 +129,7 @@ async function login({ email, password }, { ip, userAgent } = {}) {
       resource: 'auth', action: 'login',
       result: 'FAILURE',
       detail: { email, attempts: newAttempts, locked: isLocked },
-      riskLevel: isLocked ? audit.RiskLevel.HIGH : audit.RiskLevel.MEDIUM
+      riskLevel: isLocked ? audit.RiskLevel.HIGH : audit.RiskLevel.MEDIUM,
     });
 
     if (isLocked) {
@@ -129,40 +141,43 @@ async function login({ email, password }, { ip, userAgent } = {}) {
     throw Object.assign(new Error('이메일 또는 비밀번호가 올바르지 않습니다'), { status: 401 });
   }
 
-  // 로그인 성공 → JWT 발급
+  // JWT 발급
   const sessionId = uuidv4();
   const token = jwt.sign(
-    {
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      jti: sessionId,
-    },
+    { sub: user.id, email: user.email, name: user.name, role: user.role, jti: sessionId },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-  db.prepare(`
-    INSERT INTO sessions (id, user_id, token_hash, ip_address, user_agent, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(sessionId, user.id, hashToken(token), ip, userAgent, expiresAt);
+  const now = new Date().toISOString();
 
-  // 로그인 정보 업데이트
-  db.prepare(`
-    UPDATE users 
-    SET failed_login_attempts = 0, locked_until = NULL,
-        last_login_at = datetime('now'), last_login_ip = ?
-    WHERE id = ?
-  `).run(ip, user.id);
+  await db.from('sessions').insert({
+    id: sessionId,
+    user_id: user.id,
+    token_hash: hashToken(token),
+    ip_address: ip,
+    user_agent: userAgent,
+    expires_at: expiresAt,
+    revoked: false,
+    created_at: now,
+  });
+
+  await db.from('users')
+    .update({
+      failed_login_attempts: 0,
+      locked_until: null,
+      last_login_at: now,
+      last_login_ip: ip,
+    })
+    .eq('id', user.id);
 
   audit.log({
     eventType: audit.AuditEvent.LOGIN_SUCCESS,
     actorId: user.id, ip, device: userAgent,
     resource: 'auth', action: 'login',
     result: 'SUCCESS',
-    detail: { email }
+    detail: { email },
   });
 
   return {
@@ -173,56 +188,56 @@ async function login({ email, password }, { ip, userAgent } = {}) {
       name: user.name,
       role: user.role,
       mfaEnabled: !!user.mfa_enabled,
-    }
+    },
   };
 }
 
 // ── 로그아웃 ──────────────────────────────────────────────
-function logout(token, userId, { ip, userAgent } = {}) {
+async function logout(token, userId, { ip, userAgent } = {}) {
   const db = getDb();
   const tokenHash = hashToken(token);
 
-  db.prepare(`
-    UPDATE sessions SET revoked = 1 WHERE token_hash = ?
-  `).run(tokenHash);
+  await db.from('sessions').update({ revoked: true }).eq('token_hash', tokenHash);
 
   audit.log({
     eventType: audit.AuditEvent.LOGOUT,
     actorId: userId, ip, device: userAgent,
     resource: 'auth', action: 'logout',
-    result: 'SUCCESS'
+    result: 'SUCCESS',
   });
 }
 
 // ── 토큰 검증 ─────────────────────────────────────────────
-function verifyToken(token) {
+async function verifyToken(token) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     const db = getDb();
     const tokenHash = hashToken(token);
+    const now = new Date().toISOString();
 
-    const session = db.prepare(`
-      SELECT * FROM sessions 
-      WHERE token_hash = ? AND revoked = 0 AND expires_at > datetime('now')
-    `).get(tokenHash);
+    const { data: session } = await db
+      .from('sessions')
+      .select('id')
+      .eq('token_hash', tokenHash)
+      .eq('revoked', false)
+      .gt('expires_at', now)
+      .maybeSingle();
 
-    if (!session) {
-      throw new Error('Session not found or revoked');
-    }
-
+    if (!session) throw new Error('Session not found or revoked');
     return decoded;
-  } catch (err) {
+  } catch {
     throw Object.assign(new Error('유효하지 않은 토큰입니다'), { status: 401 });
   }
 }
 
 // ── 현재 사용자 조회 ───────────────────────────────────────
-function getUserById(userId) {
+async function getUserById(userId) {
   const db = getDb();
-  const user = db.prepare(`
-    SELECT id, email, name, role, mfa_enabled, last_login_at, last_login_ip, created_at
-    FROM users WHERE id = ?
-  `).get(userId);
+  const { data: user } = await db
+    .from('users')
+    .select('id, email, name, role, mfa_enabled, last_login_at, last_login_ip, created_at')
+    .eq('id', userId)
+    .maybeSingle();
   return user || null;
 }
 
