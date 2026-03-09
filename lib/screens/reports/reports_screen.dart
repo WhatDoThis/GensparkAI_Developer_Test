@@ -388,66 +388,172 @@ class _DailyReportTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = report.totalProfitRate >= 0 ? AppTheme.profit : AppTheme.loss;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: showDivider
-            ? const Border(top: BorderSide(color: AppTheme.divider))
-            : null,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(formatDate(report.date),
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(width: 8),
-                    if (report.metDailyTarget)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: AppTheme.profitLight,
-                          borderRadius: BorderRadius.circular(3),
+    return InkWell(
+      onTap: () => _showDetailSheet(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: showDivider
+              ? const Border(top: BorderSide(color: AppTheme.divider))
+              : null,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(formatDate(report.date),
+                          style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(width: 8),
+                      if (report.metDailyTarget)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppTheme.profitLight,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text('목표달성',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(color: AppTheme.profit)),
                         ),
-                        child: Text('목표달성',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: AppTheme.profit)),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 3),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${report.profitTrades}익 / ${report.lossTrades}손 · '
+                    '승률 ${report.winRate.toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
                 Text(
-                  '${report.profitTrades}익 / ${report.lossTrades}손 · '
-                  '승률 ${report.winRate.toStringAsFixed(0)}%',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  formatPercent(report.totalProfitRate),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: color, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  formatScore(report.totalScore),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelMedium
+                      ?.copyWith(color: AppTheme.textTertiary),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatPercent(report.totalProfitRate),
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: color, fontWeight: FontWeight.w700),
-              ),
-              Text(
-                formatScore(report.totalScore),
-                style: Theme.of(context)
-                    .textTheme
-                    .labelMedium
-                    ?.copyWith(color: AppTheme.textTertiary),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, size: 16, color: AppTheme.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDetailSheet(BuildContext context) {
+    final color = report.totalProfitRate >= 0 ? AppTheme.profit : AppTheme.loss;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(formatDate(report.date),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (report.metDailyTarget)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.profit,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text('🎯 목표 달성',
+                        style: TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _detailRow(context, '총 수익률', formatPercent(report.totalProfitRate), color),
+            _detailRow(context, '총 점수', formatScore(report.totalScore), AppTheme.primary),
+            _detailRow(context, '승률', '${report.winRate.toStringAsFixed(0)}%',
+                report.winRate >= 60 ? AppTheme.profit : AppTheme.warning),
+            _detailRow(context, '총 거래', '${report.totalTrades}회', AppTheme.textPrimary),
+            _detailRow(context, '수익 / 손실', '${report.profitTrades}회 / ${report.lossTrades}회', AppTheme.textPrimary),
+            if (report.marketSentiment.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Divider(color: AppTheme.divider),
+              const SizedBox(height: 8),
+              Text('AI 시장 평가',
+                  style: Theme.of(context).textTheme.labelMedium
+                      ?.copyWith(color: AppTheme.textTertiary)),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(report.marketSentiment,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: AppTheme.primary)),
               ),
             ],
-          ),
+            if (report.recommendations.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...report.recommendations.map((r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ',
+                            style: TextStyle(color: AppTheme.primary)),
+                        Expanded(
+                          child: Text(r,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppTheme.primary)),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: AppTheme.textSecondary)),
+          Text(value,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: valueColor, fontWeight: FontWeight.w600)),
         ],
       ),
     );

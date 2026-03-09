@@ -202,7 +202,31 @@ class DashboardScreen extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
           color: AppTheme.textSecondary,
-          onPressed: () {},
+          tooltip: '알림 설정',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.white, size: 18),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text('알림 설정은 더보기 → 설정 → 앱 알림에서 변경하세요'),
+                    ),
+                  ],
+                ),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+                action: SnackBarAction(
+                  label: '이동',
+                  textColor: AppTheme.primary,
+                  onPressed: () {
+                    Navigator.of(context).pushNamed('/settings');
+                  },
+                ),
+              ),
+            );
+          },
         ),
       ],
       bottom: PreferredSize(

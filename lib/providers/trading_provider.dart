@@ -41,7 +41,7 @@ class TradingProvider extends ChangeNotifier {
   bool _isMarketOpen = false;
   bool get isMarketOpen => _isMarketOpen;
 
-  String _marketSentiment = '반도체·2차전지 주도 — 적극매매';
+  String _marketSentiment = '';
   String get marketSentiment => _marketSentiment;
 
   // ── 백엔드 거래 상태 ────────────────────────────────────
@@ -386,7 +386,7 @@ class TradingProvider extends ChangeNotifier {
         stockCode: '005930', stockName: '삼성전자',
         inputSummary: '반도체 테마 Top 20 → 기술적 분석 스코어 87.4',
         outputDecision: 'BUY — HBM3 수요 급증, 외국인 순매수, RSI 38 과매도 탈출',
-        modelUsed: 'claude-sonnet-4', confidence: 85.0,
+        modelUsed: 'GPT-4o-mini', confidence: 85.0,
         createdAt: now.subtract(const Duration(hours: 1, minutes: 28)),
       ),
       AiDecisionLog(
@@ -394,7 +394,7 @@ class TradingProvider extends ChangeNotifier {
         stockCode: '000660', stockName: 'SK하이닉스',
         inputSummary: '수익률 +4.2%, 고점 대비 -0.8% 하락, RSI 71',
         outputDecision: 'SELL — 트레일링 스탑 발동. 추가 상승 여력 제한적.',
-        modelUsed: 'claude-sonnet-4', confidence: 78.0, wasCorrect: true,
+        modelUsed: 'GPT-4o-mini', confidence: 78.0, wasCorrect: true,
         createdAt: now.subtract(const Duration(hours: 3, minutes: 15)),
       ),
       AiDecisionLog(
@@ -402,7 +402,7 @@ class TradingProvider extends ChangeNotifier {
         stockCode: '035420', stockName: 'NAVER',
         inputSummary: '진입 조건 미충족 — 5MA < 20MA 데드크로스 상태',
         outputDecision: 'WAIT — 골든크로스 확인 전까지 진입 보류',
-        modelUsed: 'claude-sonnet-4', confidence: 72.0,
+        modelUsed: 'GPT-4o-mini', confidence: 72.0,
         createdAt: now.subtract(const Duration(hours: 2, minutes: 40)),
       ),
       AiDecisionLog(
@@ -410,7 +410,7 @@ class TradingProvider extends ChangeNotifier {
         stockCode: '051910', stockName: 'LG화학',
         inputSummary: '볼린저밴드 하단 터치 반등, 거래량 320%',
         outputDecision: 'BUY — 진입 적기. 목표가 412,000원, 손절가 386,000원',
-        modelUsed: 'claude-sonnet-4', confidence: 82.0, wasCorrect: true,
+        modelUsed: 'GPT-4o-mini', confidence: 82.0, wasCorrect: true,
         createdAt: now.subtract(const Duration(hours: 5, minutes: 30)),
       ),
       AiDecisionLog(
@@ -418,7 +418,7 @@ class TradingProvider extends ChangeNotifier {
         stockCode: 'MARKET', stockName: '시장 전체',
         inputSummary: '전일 거래량 급등 테마 분석 — 반도체, 2차전지, AI 플랫폼',
         outputDecision: '오늘 주도 테마: 반도체·AI (1위), 2차전지 (2위). 적극매매 권고.',
-        modelUsed: 'claude-sonnet-4', confidence: 88.0,
+        modelUsed: 'GPT-4o-mini', confidence: 88.0,
         createdAt: now.subtract(const Duration(hours: 6, minutes: 30)),
       ),
     ];

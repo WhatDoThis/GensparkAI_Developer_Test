@@ -36,6 +36,9 @@ class AutoTradeXApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const AuthGuard(child: MainShell()),
+        routes: {
+          '/settings': (ctx) => const SettingsScreen(),
+        },
       ),
     );
   }

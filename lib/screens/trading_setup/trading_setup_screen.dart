@@ -109,7 +109,11 @@ class _TradingSetupScreenState extends State<TradingSetupScreen> {
         }
       });
     } catch (e) {
-      setState(() => _errorMsg = '설정 로드 실패: $e');
+      // 백엔드 미연결 시 기본값으로 계속 진행 가능
+      setState(() {
+        _errorMsg = null; // 에러 배너 숨김 — 오프라인 모드로 진행
+        _settings = {}; // 빈 설정으로 시작
+      });
     } finally {
       setState(() => _isLoading = false);
     }
@@ -184,7 +188,10 @@ class _TradingSetupScreenState extends State<TradingSetupScreen> {
         );
       }
     } catch (e) {
-      setState(() => _errorMsg = e.toString().replaceAll('Exception: ', ''));
+      final errStr = e.toString().replaceAll('Exception: ', '');
+      setState(() => _errorMsg = errStr.contains('SocketException') || errStr.contains('TimeoutException')
+          ? '백엔드 서버 연결 실패\n백엔드가 실행 중인지 확인하세요 (포트 3000)'
+          : errStr);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -234,7 +241,10 @@ class _TradingSetupScreenState extends State<TradingSetupScreen> {
         }
       }
     } catch (e) {
-      setState(() => _errorMsg = e.toString().replaceAll('Exception: ', ''));
+      final errStr = e.toString().replaceAll('Exception: ', '');
+      setState(() => _errorMsg = errStr.contains('SocketException') || errStr.contains('TimeoutException')
+          ? '백엔드 서버 연결 실패\n서버가 실행 중인지 확인하세요 (포트 3000)'
+          : errStr);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -251,7 +261,7 @@ class _TradingSetupScreenState extends State<TradingSetupScreen> {
         foregroundColor: AppTheme.textPrimary,
         elevation: 0,
         actions: [
-          if (_settings['status'] != 'RUNNING' && _settings['status'] != 'IDLE')
+          if (_settings['status'] == 'RUNNING' || _settings['status'] == 'IDLE' || _settings.isNotEmpty)
             TextButton(
               onPressed: _confirmReset,
               child: Text('초기화', style: TextStyle(color: AppTheme.loss)),

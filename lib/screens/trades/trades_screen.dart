@@ -241,14 +241,16 @@ class _TradeDetailTile extends StatelessWidget {
         ? AppTheme.primary
         : (trade.isProfit ? AppTheme.profit : AppTheme.loss);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        border: showDivider
-            ? const Border(top: BorderSide(color: AppTheme.divider))
-            : null,
-      ),
-      child: Row(
+    return InkWell(
+      onTap: () => _showTradeDetail(context, isBuy, color, profitRate),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          border: showDivider
+              ? const Border(top: BorderSide(color: AppTheme.divider))
+              : null,
+        ),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 타입 아이콘
@@ -340,6 +342,80 @@ class _TradeDetailTile extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+      ),
+    );
+  }
+
+  void _showTradeDetail(BuildContext context, bool isBuy, Color color, double? profitRate) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(isBuy ? '매수' : '매도',
+                      style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 10),
+                Text(trade.stockName,
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(width: 6),
+                Text('(${trade.stockCode})',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppTheme.textTertiary)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _row(context, '거래 수량', '${formatNumber(trade.quantity)}주'),
+            _row(context, '거래 단가', '${formatNumber(trade.price)}원'),
+            _row(context, '총 거래금액', formatWonCompact(trade.totalAmount)),
+            _row(context, '거래 시각', formatDateTime(trade.executedAt)),
+            if (!isBuy && profitRate != null) ...[
+              _row(context, '수익률', formatPercent(profitRate),
+                  valueColor: color),
+              if (trade.score != null)
+                _row(context, '점수', formatScore(trade.score!),
+                    valueColor: AppTheme.primary),
+              if (trade.sellReasonLabel.isNotEmpty)
+                _row(context, '매도 사유', trade.sellReasonLabel),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(BuildContext context, String label, String value, {Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: AppTheme.textSecondary)),
+          Text(value,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: valueColor ?? AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600)),
         ],
       ),
     );
