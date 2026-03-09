@@ -160,7 +160,7 @@ serve({
 ║     AutoTradeX Backend v1.0.0          ║
 ║     Port: ${info.port}                         ║
 ║     Mode: ${(process.env.TRADING_MODE || 'paper').padEnd(10)}              ║
-║     DB: ${(process.env.DATABASE_PATH || './data/autotradex.db').padEnd(30)}  ║
+║     DB: ${'Supabase PostgreSQL'.padEnd(30)}  ║
 ╚════════════════════════════════════════╝
   `);
   console.log(`[SERVER] http://localhost:${info.port}/health`);
